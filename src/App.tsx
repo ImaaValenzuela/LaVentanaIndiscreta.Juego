@@ -422,13 +422,13 @@ export default function App() {
   }
 
   const renderDesktopQRView = () => {
-    const currentUrl = window.location.href;
+    const targetUrl = "https://la-ventana-indiscreta-juego.vercel.app/";
     return (
       <div className="desktop-qr-container">
         <div className="desktop-qr-card">
           <div className="qr-camera-lens">
             <img 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=d4af37&bgcolor=12141c&data=${encodeURIComponent(currentUrl)}`} 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=d4af37&bgcolor=12141c&data=${encodeURIComponent(targetUrl)}`} 
               alt="Código QR del Juego" 
               className="qr-code-img"
             />
@@ -452,7 +452,7 @@ export default function App() {
                 <span>Comienza a ordenar las 31 escenas.</span>
               </div>
             </div>
-            <a href={currentUrl} className="desktop-link-fallback" target="_blank" rel="noreferrer">
+            <a href={targetUrl} className="desktop-link-fallback" target="_blank" rel="noreferrer">
               O haz clic aquí para abrir el enlace
             </a>
           </div>

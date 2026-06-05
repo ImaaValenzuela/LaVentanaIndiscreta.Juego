@@ -929,12 +929,12 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px 20px;
+  padding: 40px 30px;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
   border-radius: 16px;
   box-shadow: var(--shadow-lg);
-  max-width: 700px;
+  max-width: 850px;
   margin: 30px auto;
   animation: fadeIn 0.4s ease-out;
 }
@@ -962,16 +962,16 @@ body {
 }
 
 .qr-camera-lens {
-  width: 210px;
-  height: 210px;
+  width: 340px;
+  height: 340px;
   border-radius: 50%;
   background: #0b0c10;
-  border: 6px solid #1e2330;
+  border: 10px solid #1e2330;
   box-shadow: 0 0 0 2px var(--accent-gold), var(--shadow-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 15px;
+  padding: 20px;
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
@@ -987,8 +987,8 @@ body {
 }
 
 .qr-code-img {
-  width: 150px;
-  height: 150px;
+  width: 260px;
+  height: 260px;
   border-radius: 8px;
   display: block;
 }
