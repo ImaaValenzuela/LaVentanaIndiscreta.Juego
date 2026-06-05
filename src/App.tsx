@@ -9,7 +9,7 @@ import { allScenes } from './scenesData';
 import type { Scene } from './scenesData';
 import './App.css';
 
-// Helper to convert index to Roman Numerals (1 to 31)
+// Helper to convert index to Roman Numerals (1 to 30)
 function getRomanNumeral(num: number): string {
   const tens = Math.floor(num / 10);
   const units = num % 10;
@@ -153,8 +153,8 @@ export default function App() {
   const [pool, setPool] = useState<Scene[]>(() => {
     return [...allScenes].sort(() => Math.random() - 0.5);
   });
-  const [slots, setSlots] = useState<(Scene | null)[]>(() => Array(31).fill(null));
-  const [validation, setValidation] = useState<('correct' | 'incorrect' | null)[]>(() => Array(31).fill(null));
+  const [slots, setSlots] = useState<(Scene | null)[]>(() => Array(allScenes.length).fill(null));
+  const [validation, setValidation] = useState<('correct' | 'incorrect' | null)[]>(() => Array(allScenes.length).fill(null));
   
   // Hints state (Exactly 3 hints total)
   const [hintsLeft, setHintsLeft] = useState(3);
@@ -165,9 +165,12 @@ export default function App() {
   
   // UI states
   const [flashActive, setFlashActive] = useState(false);
-  const [showVictoryModal, setShowVictoryModal] = useState(false);
+  const [showResultsModal, setShowResultsModal] = useState(false);
   const [viewMode, setViewMode] = useState<'game' | 'glossary'>('game');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  const correctCount = slots.filter((card, idx) => card?.id === allScenes[idx]?.id).length;
+  const isAllCorrect = correctCount === allScenes.length;
 
   useEffect(() => {
     const handleResize = () => {
@@ -192,27 +195,27 @@ export default function App() {
     }
   };
 
-  // Initialize all 31 scenes shuffled in the pool
+  // Initialize all scenes shuffled in the pool
   const initGame = () => {
-    setValidation(Array(31).fill(null));
+    setValidation(Array(allScenes.length).fill(null));
     
     // Shuffle the global scenes
     const shuffled = [...allScenes].sort(() => Math.random() - 0.5);
 
     setPool(shuffled);
-    setSlots(Array(31).fill(null));
+    setSlots(Array(allScenes.length).fill(null));
   };
 
   // Timer side-effect
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
-    if (gameStarted && !showVictoryModal) {
+    if (gameStarted && !showResultsModal) {
       timer = setInterval(() => {
         setElapsedTime(prev => prev + 1);
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [gameStarted, showVictoryModal]);
+  }, [gameStarted, showResultsModal]);
 
 
 
@@ -224,7 +227,7 @@ export default function App() {
       return;
     }
 
-    setValidation(Array(31).fill(null));
+    setValidation(Array(allScenes.length).fill(null));
     setMoveCount(m => m + 1);
 
     setSlots(prevSlots => {
@@ -252,7 +255,7 @@ export default function App() {
         if (sourceIndex === undefined || targetIndex === undefined) return;
         if (sourceIndex === targetIndex) return;
 
-        setValidation(Array(31).fill(null));
+        setValidation(Array(allScenes.length).fill(null));
         setMoveCount(m => m + 1);
 
         setSlots(prevSlots => {
@@ -274,7 +277,7 @@ export default function App() {
     const card = slots[index];
     if (!card) return;
 
-    setValidation(Array(31).fill(null));
+    setValidation(Array(allScenes.length).fill(null));
     setSlots(prevSlots => {
       const nextSlots = [...prevSlots];
       nextSlots[index] = null;
@@ -288,11 +291,11 @@ export default function App() {
     });
   };
 
-  // Verify chronology of all 31 scenes
+  // Verify chronology of all scenes
   const verifyThread = () => {
     const hasEmpty = slots.some(s => s === null);
     if (hasEmpty) {
-      alert("¡Coloca todas las 31 escenas en el rollo de película antes de verificar!");
+      alert(`¡Coloca todas las ${allScenes.length} escenas en el rollo de película antes de verificar!`);
       return;
     }
 
@@ -306,13 +309,11 @@ export default function App() {
     });
 
     setValidation(nextValidation);
-    const isAllCorrect = nextValidation.every(v => v === 'correct');
 
-    if (isAllCorrect) {
-      setTimeout(() => {
-        setShowVictoryModal(true);
-      }, 500);
-    }
+    // Stop the counter and open the results/victory modal to show the final score
+    setTimeout(() => {
+      setShowResultsModal(true);
+    }, 500);
   };
 
   // Autocomplete one scene in its correct slot (Limit to 3)
@@ -321,7 +322,7 @@ export default function App() {
 
     // Find the first slot that is empty or incorrect
     let hintTargetSlotIndex = -1;
-    for (let i = 0; i < 31; i++) {
+    for (let i = 0; i < allScenes.length; i++) {
       const expectedScene = allScenes[i];
       if (!slots[i] || slots[i]?.id !== expectedScene.id) {
         hintTargetSlotIndex = i;
@@ -334,7 +335,7 @@ export default function App() {
     const correctScene = allScenes[hintTargetSlotIndex];
     const currentSlotIndex = slots.findIndex(s => s?.id === correctScene.id);
     
-    setValidation(Array(31).fill(null));
+    setValidation(Array(allScenes.length).fill(null));
     setHintsLeft(h => h - 1);
 
     if (currentSlotIndex !== -1) {
@@ -368,12 +369,12 @@ export default function App() {
 
   const resetGame = () => {
     setGameStarted(false);
-    setValidation(Array(31).fill(null));
-    setSlots(Array(31).fill(null));
+    setValidation(Array(allScenes.length).fill(null));
+    setSlots(Array(allScenes.length).fill(null));
     setMoveCount(0);
     setElapsedTime(0);
     setHintsLeft(3);
-    setShowVictoryModal(false);
+    setShowResultsModal(false);
     setViewMode('game');
     initGame();
   };
@@ -396,13 +397,13 @@ export default function App() {
           <p className="modal-text">
             El fotógrafo L.B. Jefferies observa a sus vecinos de Greenwich Village desde su silla de ruedas. Sospecha que Lars Thorwald ha asesinado a su esposa.
             <br /><br />
-            Las 31 escenas de esta intriga están desordenadas en tu mesa de negativos. Tu misión es arrastrarlas y colocarlas secuencialmente en el rollo de película.
+            Las {allScenes.length} escenas de esta intriga están desordenadas en tu mesa de negativos. Tu misión es arrastrarlas y colocarlas secuencialmente en el rollo de película.
           </p>
 
           <div style={{ textAlign: 'left', background: 'rgba(0,0,0,0.25)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '24px', fontSize: '0.85rem' }}>
             <span style={{ color: 'var(--accent-gold)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Reglas del juego:</span>
             <ul style={{ paddingLeft: '16px', color: 'var(--text-secondary)' }}>
-              <li>Monta la película ordenando cronológicamente las 31 escenas.</li>
+              <li>Monta la película ordenando cronológicamente las {allScenes.length} escenas.</li>
               <li>Tienes un límite de <strong>3 pistas</strong> para autocompletar escenas complicadas.</li>
               <li>Verifica tu secuencia para descubrir qué fotogramas coinciden.</li>
             </ul>
@@ -449,7 +450,7 @@ export default function App() {
               </div>
               <div className="qr-step">
                 <span className="qr-step-num">3</span>
-                <span>Comienza a ordenar las 31 escenas.</span>
+                <span>Comienza a ordenar las {allScenes.length} escenas.</span>
               </div>
             </div>
             <a href={targetUrl} className="desktop-link-fallback" target="_blank" rel="noreferrer">
@@ -469,7 +470,7 @@ export default function App() {
         <p className="app-subtitle">LA VENTANA INDISCRETA</p>
         <h1 className="app-title">El Hilo Narrativo</h1>
         <p className="app-description">
-          Reconstruye el montaje cinematográfico de Alfred Hitchcock ordenando las 31 escenas del misterio.
+          Reconstruye el montaje cinematográfico de Alfred Hitchcock ordenando las {allScenes.length} escenas del misterio.
         </p>
       </header>
 
@@ -491,7 +492,7 @@ export default function App() {
               style={{ flex: 1 }}
             >
               <BookOpen size={16} />
-              Glosario de Escenas (31)
+              Glosario de Escenas ({allScenes.length})
             </button>
             <button className="btn btn-danger" onClick={resetGame} style={{ flex: '0 0 auto' }} title="Reiniciar Juego">
               <RotateCcw size={16} />
@@ -641,7 +642,7 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
             <h2 style={{ fontFamily: 'var(--heading)', fontSize: '1.5rem', color: '#fff' }}>Glosario Narrativo</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-              La secuencia exacta de las 31 escenas de la obra de Alfred Hitchcock.
+              La secuencia exacta de las {allScenes.length} escenas de la obra de Alfred Hitchcock.
             </p>
           </div>
 
@@ -666,45 +667,70 @@ export default function App() {
         </div>
       )}
 
-      {/* Victory Modal */}
-      {showVictoryModal && (
+      {/* Results / Victory Modal */}
+      {showResultsModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ border: '2px solid var(--accent-gold)' }}>
-            <div className="modal-icon" style={{ background: 'rgba(212, 175, 55, 0.2)' }}>
-              <Award size={28} />
+          <div className="modal-content" style={{ border: isAllCorrect ? '2px solid var(--accent-gold)' : '2px solid var(--border-color)' }}>
+            <div className="modal-icon" style={{ background: isAllCorrect ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255, 255, 255, 0.1)' }}>
+              {isAllCorrect ? <Award size={28} /> : <Film size={28} />}
             </div>
-            <h2 className="modal-title" style={{ fontFamily: 'var(--heading)' }}>¡Investigación Resuelta!</h2>
+            <h2 className="modal-title" style={{ fontFamily: 'var(--heading)' }}>
+              {isAllCorrect ? '¡Investigación Resuelta!' : 'Resultados del Montaje'}
+            </h2>
             <p className="modal-text">
-              ¡Excelente trabajo de montaje! Has ordenado las 31 escenas de <strong>La Ventana Indiscreta</strong> en el hilo conductor cronológico original de la obra maestra. Lars Thorwald ha sido atrapado gracias a tu secuencia temporal de pruebas.
+              {isAllCorrect 
+                ? `¡Excelente trabajo de montaje! Has ordenado las ${allScenes.length} escenas de La Ventana Indiscreta en el hilo conductor cronológico original de la obra maestra. Lars Thorwald ha sido atrapado gracias a tu secuencia temporal de pruebas.`
+                : `Has completado el montaje de la película. Algunas escenas no están en el orden cronológico correcto. Revisa los fotogramas marcados en la mesa de negativos y en el rollo de película.`
+              }
             </p>
 
             <div style={{ background: 'rgba(0,0,0,0.25)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
               <h3 style={{ color: 'var(--accent-gold)', fontSize: '0.8rem', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Informe de Investigación</h3>
-              <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', textAlign: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Puntaje Final</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isAllCorrect ? 'var(--accent-gold)' : '#fff' }}>
+                    {correctCount} / {allScenes.length}
+                  </div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                    ({Math.round((correctCount / allScenes.length) * 100)}% aciertos)
+                  </div>
+                </div>
                 <div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Tiempo</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{formatTime(elapsedTime)}</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff' }}>{formatTime(elapsedTime)}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Movimientos</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{moveCount}</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff' }}>{moveCount}</div>
                 </div>
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-              <button 
-                className="btn btn-secondary" 
-                onClick={() => {
-                  setShowVictoryModal(false);
-                  setViewMode('glossary');
-                }}
-                style={{ flex: 1 }}
-              >
-                Glosario
-              </button>
+              {!isAllCorrect && (
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowResultsModal(false)}
+                  style={{ flex: 1 }}
+                >
+                  Seguir Intentando
+                </button>
+              )}
+              {isAllCorrect && (
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    setShowResultsModal(false);
+                    setViewMode('glossary');
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  Glosario
+                </button>
+              )}
               <button className="btn btn-primary" onClick={resetGame} style={{ flex: 1 }}>
-                Volver a Jugar
+                {isAllCorrect ? 'Volver a Jugar' : 'Reiniciar Juego'}
               </button>
             </div>
           </div>
