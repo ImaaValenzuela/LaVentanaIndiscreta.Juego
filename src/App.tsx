@@ -150,10 +150,14 @@ function FilmSlot({ index, card, onRemove, validationStatus }: FilmSlotProps) {
 
 export default function App() {
   const [gameStarted, setGameStarted] = useState(false);
-  const [pool, setPool] = useState<Scene[]>(() => {
-    return [...allScenes].sort(() => Math.random() - 0.5);
-  });
-  const [slots, setSlots] = useState<(Scene | null)[]>(() => Array(allScenes.length).fill(null));
+  const [gameState, setGameState] = useState<{
+    pool: Scene[];
+    slots: (Scene | null)[];
+  }>(() => ({
+    pool: [...allScenes].sort(() => Math.random() - 0.5),
+    slots: Array(allScenes.length).fill(null)
+  }));
+  const { pool, slots } = gameState;
   const [validation, setValidation] = useState<('correct' | 'incorrect' | null)[]>(() => Array(allScenes.length).fill(null));
   
   // Hints state (Exactly 3 hints total)
@@ -202,8 +206,10 @@ export default function App() {
     // Shuffle the global scenes
     const shuffled = [...allScenes].sort(() => Math.random() - 0.5);
 
-    setPool(shuffled);
-    setSlots(Array(allScenes.length).fill(null));
+    setGameState({
+      pool: shuffled,
+      slots: Array(allScenes.length).fill(null)
+    });
   };
 
   // Timer side-effect
@@ -230,13 +236,19 @@ export default function App() {
     setValidation(Array(allScenes.length).fill(null));
     setMoveCount(m => m + 1);
 
-    setSlots(prevSlots => {
-      const nextSlots = [...prevSlots];
-      nextSlots[firstEmptyIndex] = scene;
-      return nextSlots;
-    });
+    setGameState(prev => {
+      const nextSlots = [...prev.slots];
+      const targetIndex = nextSlots.findIndex(s => s === null);
+      if (targetIndex === -1) return prev;
 
-    setPool(prevPool => prevPool.filter(p => p.id !== scene.id));
+      nextSlots[targetIndex] = scene;
+      const nextPool = prev.pool.filter(p => p.id !== scene.id);
+
+      return {
+        slots: nextSlots,
+        pool: nextPool
+      };
+    });
   };
 
   // Monitor drag-and-drop globally (Slot to Slot only)
@@ -258,19 +270,22 @@ export default function App() {
         setValidation(Array(allScenes.length).fill(null));
         setMoveCount(m => m + 1);
 
-        setSlots(prevSlots => {
-          const nextSlots = [...prevSlots];
+        setGameState(prev => {
+          const nextSlots = [...prev.slots];
           const sourceItem = nextSlots[sourceIndex];
           const targetItem = nextSlots[targetIndex];
 
           nextSlots[sourceIndex] = targetItem;
           nextSlots[targetIndex] = sourceItem;
 
-          return nextSlots;
+          return {
+            ...prev,
+            slots: nextSlots
+          };
         });
       }
     });
-  }, [slots]);
+  }, []);
 
   // Click handler to remove cards easily
   const removeCardFromSlot = (index: number) => {
@@ -278,16 +293,22 @@ export default function App() {
     if (!card) return;
 
     setValidation(Array(allScenes.length).fill(null));
-    setSlots(prevSlots => {
-      const nextSlots = [...prevSlots];
+    setGameState(prev => {
+      const targetCard = prev.slots[index];
+      if (!targetCard) return prev;
+
+      const nextSlots = [...prev.slots];
       nextSlots[index] = null;
-      return nextSlots;
-    });
-    setPool(prevPool => {
-      if (!prevPool.some(s => s.id === card.id)) {
-        return [...prevPool, card];
+
+      const nextPool = [...prev.pool];
+      if (!nextPool.some(s => s.id === targetCard.id)) {
+        nextPool.push(targetCard);
       }
-      return prevPool;
+
+      return {
+        slots: nextSlots,
+        pool: nextPool
+      };
     });
   };
 
@@ -321,56 +342,67 @@ export default function App() {
     if (hintsLeft <= 0) return;
 
     // Find the first slot that is empty or incorrect
-    let hintTargetSlotIndex = -1;
+    let targetIndex = -1;
     for (let i = 0; i < allScenes.length; i++) {
       const expectedScene = allScenes[i];
-      if (!slots[i] || slots[i]?.id !== expectedScene.id) {
-        hintTargetSlotIndex = i;
+      const currentCard = slots[i];
+      if (!currentCard || currentCard.id !== expectedScene.id) {
+        targetIndex = i;
         break;
       }
     }
 
-    if (hintTargetSlotIndex === -1) return;
+    if (targetIndex === -1) return;
 
-    const correctScene = allScenes[hintTargetSlotIndex];
-    const currentSlotIndex = slots.findIndex(s => s?.id === correctScene.id);
-    
-    setValidation(Array(allScenes.length).fill(null));
     setHintsLeft(h => h - 1);
+    setValidation(Array(allScenes.length).fill(null));
 
-    if (currentSlotIndex !== -1) {
-      // Swapping slots
-      setSlots(prevSlots => {
-        const nextSlots = [...prevSlots];
+    setGameState(prev => {
+      let hintTargetSlotIndex = -1;
+      for (let i = 0; i < allScenes.length; i++) {
+        const expectedScene = allScenes[i];
+        if (!prev.slots[i] || prev.slots[i]?.id !== expectedScene.id) {
+          hintTargetSlotIndex = i;
+          break;
+        }
+      }
+
+      if (hintTargetSlotIndex === -1) return prev;
+
+      const correctScene = allScenes[hintTargetSlotIndex];
+      const currentSlotIndex = prev.slots.findIndex(s => s?.id === correctScene.id);
+
+      const nextSlots = [...prev.slots];
+      let nextPool = [...prev.pool];
+
+      if (currentSlotIndex !== -1) {
+        // Swapping slots
         const targetCard = nextSlots[hintTargetSlotIndex];
         nextSlots[hintTargetSlotIndex] = correctScene;
         nextSlots[currentSlotIndex] = targetCard;
-        return nextSlots;
-      });
-    } else {
-      // Swapping pool with slot
-      setSlots(prevSlots => {
-        const nextSlots = [...prevSlots];
+      } else {
+        // Swapping pool with slot
         const occupiedCard = nextSlots[hintTargetSlotIndex];
         nextSlots[hintTargetSlotIndex] = correctScene;
 
-        setPool(prevPool => {
-          let nextPool = prevPool.filter(s => s.id !== correctScene.id);
-          if (occupiedCard) {
-            nextPool = [...nextPool, occupiedCard];
+        nextPool = nextPool.filter(s => s.id !== correctScene.id);
+        if (occupiedCard) {
+          if (!nextPool.some(s => s.id === occupiedCard.id)) {
+            nextPool.push(occupiedCard);
           }
-          return nextPool;
-        });
+        }
+      }
 
-        return nextSlots;
-      });
-    }
+      return {
+        slots: nextSlots,
+        pool: nextPool
+      };
+    });
   };
 
   const resetGame = () => {
     setGameStarted(false);
     setValidation(Array(allScenes.length).fill(null));
-    setSlots(Array(allScenes.length).fill(null));
     setMoveCount(0);
     setElapsedTime(0);
     setHintsLeft(3);
